@@ -18,6 +18,8 @@ data:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'clave-desarrollo-solo-para-local')
     REDIS_HOST = 'localhost'
     REDIS_PORT = 6379
+    # Permitir acceso desde cualquier origen
+    HOST = '0.0.0.0'
     # Añade aquí otras configuraciones específicas que necesite tu app
 ---
 apiVersion: apps/v1
@@ -38,9 +40,29 @@ spec:
     spec:
       containers:
       - name: flask-app
-        image: isaacam/calculadora_app:41e3f3364c434a45e54e7c1fc4503f90cb035387
+        image: isaacam/calculadora_app:85a790d91f3b924866c8858ec8863a5971f49c9a
         ports:
         - containerPort: 5000
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
         env:
         - name: SECRET_KEY
           valueFrom:
@@ -51,6 +73,12 @@ spec:
           value: "localhost"
         - name: REDIS_PORT
           value: "6379"
+        - name: FLASK_APP
+          value: "app.app"
+        - name: FLASK_ENV
+          value: "production"
+        - name: FLASK_RUN_HOST
+          value: "0.0.0.0"
         volumeMounts:
         - name: config-volume
           mountPath: /app/app/app/config.py
@@ -72,10 +100,39 @@ apiVersion: v1
 kind: Service
 metadata:
   name: flaskservice
+  labels:
+    app: flask
 spec:
   selector:
     app: flask
   ports:
     - port: 80
+      targetPort: 5000
+  type: ClusterIP  # Cambiado de LoadBalancer a ClusterIP ya que usaremos Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: flask-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.org/client-max-body-size: "0"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: flaskservice
+            port:
+              number: 80
       targetPort: 5000
   type: LoadBalancer
