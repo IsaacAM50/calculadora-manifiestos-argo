@@ -40,7 +40,7 @@ spec:
     spec:
       containers:
       - name: flask-app
-        image: isaacam/calculadora_app:85a790d91f3b924866c8858ec8863a5971f49c9a
+        image: isaacam/calculadora_app:bc1a01e195f1d0ee9cfc4ba9ce819dd14f915fc4
         ports:
         - containerPort: 5000
           name: http
