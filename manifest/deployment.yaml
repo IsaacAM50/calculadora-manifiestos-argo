@@ -113,22 +113,7 @@ spec:
       targetPort: 5000
       name: http
   type: ClusterIP
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: flask-ingress
-spec:
-  rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: flaskservice
-            port:
-              number: 80
+
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
