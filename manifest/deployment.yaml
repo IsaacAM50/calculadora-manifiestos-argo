@@ -44,18 +44,6 @@ spec:
         ports:
         - containerPort: 5000
           name: http
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 5000
-          initialDelaySeconds: 10
-          periodSeconds: 5
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 5000
-          initialDelaySeconds: 15
-          periodSeconds: 20
         resources:
           requests:
             memory: "128Mi"
