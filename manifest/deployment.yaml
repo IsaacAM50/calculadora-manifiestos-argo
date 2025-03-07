@@ -29,7 +29,7 @@ metadata:
   labels:
     app: flask 
 spec:
-  replicas: 1
+  replicas: 3  # Inicialmente 3 réplicas
   selector:
     matchLabels:
       app: flask 
@@ -40,7 +40,7 @@ spec:
     spec:
       containers:
       - name: flask-app
-        image: isaacam/calculadora_app:ca2e8b1ec1696316e07d2f39980fef3ce04096a3
+        image: isaacam/calculadora_app:85a790d91f3b924866c8858ec8863a5971f49c9a
         ports:
         - containerPort: 5000
           name: http
@@ -91,6 +91,9 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "100m"
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
       volumes:
       - name: config-volume
         configMap:
@@ -108,6 +111,61 @@ spec:
   ports:
     - port: 80
       targetPort: 5000
-  type: ClusterIP  # Cambiado de LoadBalancer a ClusterIP ya que usaremos Ingress
+  type: ClusterIP
 ---
-
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: flask-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.org/client-max-body-size: "0"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: flaskservice
+            port:
+              number: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: flask-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: flaskapp
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
